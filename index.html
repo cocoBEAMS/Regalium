@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <style>
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    .premium-banner {
+      max-width: 1100px;
+      margin: 20px auto 0;
+      padding: 14px 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #0d1220;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .premium-banner strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .premium-banner span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .premium-banner button {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--red);
+      background: transparent;
+      color: var(--red);
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FriendConnect</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0d14;
+      --panel: #0f1420;
+      --border: #1e2638;
+      --text: #e9ecf1;
+      --muted: #8b93a7;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .profile .bio {
+      font-size: 13px;
+      color: var(--muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2; /* 👈 change to 2 if you want */
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .profile .bio.expanded {
+      -webkit-line-clamp: unset;
+    }
+
+    .read-more {
+      font-size: 12px;
+      color: var(--blue);
+      cursor: pointer;
+      margin-top: 6px;
+      display: inline-block;
+    }
+
+    /* NAVBAR */
+    nav {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: #0a0d14;
+    }
+
+    .logo {
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      font-size: 20px;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .nav-link {
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .nav-btn {
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid var(--blue);
+      background: transparent;
+      color: var(--blue);
+      cursor: pointer;
+    }
+
+    /* PROFILES GRID */
+    .container {
+      max-width: 1100px;
+      margin: 32px auto 80px;
+      padding: 0 20px;
+    }
+
+    .profiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .profile {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      transition: border-color .2s ease;
+    }
+
+    .profile:hover {
+      border-color: var(--blue);
+    }
+
+    .profile h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .profile span {
+      font-size: 13px;
+      color: var(--muted);
+      display: block;
+    }
+
+    .tags {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    /* MODAL */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .modal {
+      width: 420px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(239,68,68,0.15);
+      color: var(--red);
+      margin-bottom: 12px;
+    }
+
+    .modal h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .deal-box {
+      border: 1px solid var(--blue);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      font-weight: 600;
+      color: var(--blue);
+    }
+
+    .modal button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      background: var(--blue);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">FriendConnect</div>
+    <div class="nav-actions">
+      <div class="nav-link" id="userNav" onclick="openAuthIfNeeded()">Sign in</div>
+      <button class="nav-btn" id="openDeal">Best Friend Deal</button>
+    </div>
+  </nav>
+
+  <!-- AUTH MODAL -->
+  <div class="overlay" id="authModal">
+    <div class="modal">
+     
+
+      <div class="badge">FriendConnect</div>
+      <h2 id="authTitle">Make an account</h2>
+      <p>Create your FriendConnect profile. Your Profile is stored securely in the cloud. Avoid making your password anything important.</p>
+      <input id="email" placeholder="Email"
+        style="width:100%;margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0a0d14;color:var(--text);" />
+
+      <input id="password" type="password" placeholder="Password"
+        style="width:100%;margin-bottom:12px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0a0d14;color:var(--text);" />
+      <input id="name" placeholder="Name" style="width:100%;margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0a0d14;color:var(--text);" />
+      <input id="age" placeholder="Age" type="number" style="width:100%;margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0a0d14;color:var(--text);" />
+      <input
+        id="bio"
+        placeholder="Short bio"
+        style="width:100%;margin-bottom:12px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0a0d14;color:var(--text);"
+      />
+
+     
+      <div id="bioCounter" style="font-size:12px;color:var(--muted);text-align:right;margin-bottom:12px;">
+        0 / 150
+      </div>
+
+      <button onclick="saveProfile()">Create account</button>
+    </div>
+  </div>
+
+  <div class="premium-banner">
+    <div>
+      <strong>FriendConnect Premium</strong>
+      <span>Priority matches, unlimited requests, verified badge</span>
+    </div>
+    <button onclick="openDealFromBanner()">Upgrade</button>
+  </div>
+
+  <div class="container">
+    <div class="profiles" id="profilesGrid">
+    
+        </div>
+
+  <div class="overlay" id="dealModal">
+    <div class="modal">
+      <div class="badge">Limited Offer</div>
+      <h2>Best Friend Deal</h2>
+      <p>Get priority matching, unlimited requests, and verified badges.</p>
+      <div class="deal-box">Free for early members</div>
+      <button onclick="closeDeal()">Claim deal</button>
+    </div>
+  </div>
+  
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+      import {
+        getAuth,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        onAuthStateChanged
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+      import {
+        getFirestore,
+        doc,
+        setDoc,
+        getDoc,
+        collection,
+        getDocs
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
+        authDomain: "friendconnect-99a50.firebaseapp.com",
+        projectId: "friendconnect-99a50",
+        storageBucket: "friendconnect-99a50.appspot.com",
+        messagingSenderId: "904196830848",
+        appId: "1:904196830848:web:50c15121c2c04f1ea01865"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      const authModal = document.getElementById("authModal");
+      const userNav = document.getElementById("userNav");
+      const profilesGrid = document.getElementById("profilesGrid");
+      const bioInput = document.getElementById("bio");
+      const bioCounter = document.getElementById("bioCounter");
+
+      bioInput.addEventListener("input", () => {
+        const length = bioInput.value.length;
+        bioCounter.textContent = `${length} / 150`;
+
+        // Optional visual warning
+        bioCounter.style.color = length > 150 ? "var(--red)" : "var(--muted)";
+      });
+
+      authModal.addEventListener("click", (e) => { if (e.target === authModal) authModal.style.display = "none"; });
+      function renderProfile(profile, isYou = false) {
+        if (!profile?.name) return;
+
+        const bioText = profile.bio || "";
+        const isLongBio = bioText.length > 90;
+
+        const card = document.createElement("div");
+        card.className = "profile";
+
+        card.innerHTML = `
+          <div class="avatar">${profile.name[0].toUpperCase()}</div>
+
+          <h3>${profile.name}, ${profile.age ?? "?"}</h3>
+
+          <span class="bio">${bioText || "No bio yet"}</span>
+
+          ${isLongBio ? `<span class="read-more">Read more</span>` : ""}
+
+          <div class="tags">
+            <div class="tag">${isYou ? "You" : "Member"}</div>
+          </div>
+        `;
+
+        profilesGrid.appendChild(card);
+      }
+
+
+      // Open auth modal
+      window.openAuthIfNeeded = () => {
+        authModal.style.display = "flex";
+      };
+
+      // Open deal modal
+      window.openDealFromBanner = () => {
+        document.getElementById("dealModal").style.display = "flex";
+      };
+
+      // Close deal modal
+      window.closeDeal = () => {
+        document.getElementById("dealModal").style.display = "none";
+      };
+
+
+      // Create account OR sign in
+      window.saveProfile = async () => {
+        const name = document.getElementById("name").value.trim();
+        const age = Number(document.getElementById("age").value);
+        const bio = document.getElementById("bio").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+
+        // 1️⃣ Auth fields first
+        if (!email || !password) {
+          alert("Email and password required");
+          return;
+        }
+
+        // 2️⃣ Empty profile fields
+        if (!name || !age || !bio) {
+          alert("Please fill out all profile fields");
+          return;
+        }
+
+        // 3️⃣ Age check
+        if (!Number.isInteger(age) || age < 13 || age > 120) {
+          alert("Age must be a number between 13 and 120");
+          return;
+        }
+
+        // 4️⃣ Bio length limit
+        if (bio.length > 150) {
+          alert("Bio must be 150 characters or less");
+          return;
+        }
+
+        try {
+          let cred;
+
+          // Try creating account
+          try {
+            cred = await createUserWithEmailAndPassword(auth, email, password);
+          } catch (err) {
+            // If account already exists → sign in instead
+            if (err.code === "auth/email-already-in-use") {
+              cred = await signInWithEmailAndPassword(auth, email, password);
+            } else {
+              throw err;
+            }
+          }
+
+          // Only create Firestore profile if it doesn't exist
+          const userRef = doc(db, "users", cred.user.uid);
+          const snap = await getDoc(userRef);
+
+          if (!snap.exists()) {
+            await setDoc(userRef, {
+              name,
+              age,
+              bio,
+              createdAt: Date.now()
+            });
+          }
+
+          authModal.style.display = "none";
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+
+      // Auth state listener
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) return;
+        profilesGrid.innerHTML = "";
+        authModal.style.display = "none";
+
+        // Get YOUR profile
+        const yourSnap = await getDoc(doc(db, "users", user.uid));
+        if (!yourSnap.exists()) return;
+
+        const yourProfile = yourSnap.data();
+        userNav.textContent = yourProfile.name;
+
+        
+       
+
+        // Render YOU first
+        renderProfile(yourProfile, true);
+
+        // Load ALL other users
+        const allUsersSnap = await getDocs(collection(db, "users"));
+
+        allUsersSnap.forEach((docSnap) => {
+          if (docSnap.id === user.uid) return; // skip yourself
+
+          const profile = docSnap.data();
+          renderProfile(profile, false);
+        });
+      });
+
+
+    </script>
+     
+
+</body>
+</html>
