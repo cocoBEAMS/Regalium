@@ -1,7 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
   <style>
+    /* Overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    /* Card */
+    .modal-card {
+      background: #0a0d14;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Icon */
+    .modal-icon {
+      font-size: 42px;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    /* Title */
+    .modal-card h2 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+
+    /* Text */
+    .modal-card p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 22px;
+    }
+
+    /* Button */
+    .primary-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      background: var(--accent);
+      color: #0777f7;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .primary-btn:hover {
+      opacity: 0.9;
+    }
+
+
+    #requestsList {
+      margin-bottom: 32px;
+    }
+
+    #requestsList span {
+      display: block;
+      padding: 16px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .request-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .request-card span {
+      font-size: 14px;
+    }
+
+    .request-actions button {
+      margin-left: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .accept-btn {
+      background: var(--blue);
+      color: white;
+    }
+
+    .decline-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .add-friend {
+      margin-top: 12px;
+      width: 100%;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid var(--blue);
+      background: transparent;
+      color: var(--blue);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .add-friend:hover {
+      background: rgba(59,130,246,0.1);
+    }
+
     html {
       min-height: 100%;
       background: var(--bg);
@@ -299,6 +425,15 @@
     </div>
     <button onclick="openDealFromBanner()">Upgrade</button>
   </div>
+  
+  <div class="container">
+    <h2 style="margin-bottom:12px;">
+      Friend Requests
+    </h2>
+
+    <div id="requestsList"></div>
+  </div>
+
 
   <div class="container">
     <div class="profiles" id="profilesGrid">
@@ -316,7 +451,9 @@
   </div>
   
     <script type="module">
+      
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+      
       import {
         getAuth,
         createUserWithEmailAndPassword,
@@ -332,6 +469,11 @@
         getDocs
       } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+      import {
+        query,
+        where,
+        deleteDoc
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
       const firebaseConfig = {
         apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
@@ -345,8 +487,72 @@
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
       const db = getFirestore(app);
+      let sentRequests = new Set();
+
+      /* ✅ NOW everything exists */
+      async function loadIncomingRequests(user) {
+        const requestsList = document.getElementById("requestsList");
+        requestsList.innerHTML = "";
+
+        const q = query(
+          collection(db, "friendRequests"),
+          where("to", "==", user.uid),
+          where("status", "==", "pending")
+        );
+
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          requestsList.innerHTML = `<span style="color:var(--muted)">No requests yet</span>`;
+          return;
+        }
+
+        for (const docSnap of snap.docs) {
+          const req = docSnap.data();
+
+          const senderSnap = await getDoc(doc(db, "users", req.from));
+          if (!senderSnap.exists()) continue;
+
+          const sender = senderSnap.data();
+
+          const card = document.createElement("div");
+          card.className = "request-card";
+
+          card.innerHTML = `
+            <span><strong>${sender.name}</strong> wants to be your friend</span>
+            <div class="request-actions">
+              <button class="accept-btn" onclick="acceptRequest('${docSnap.id}', '${req.from}')">Accept</button>
+              <button class="decline-btn" onclick="declineRequest('${docSnap.id}')">Decline</button>
+            </div>
+          `;
+
+          requestsList.appendChild(card);
+        }
+      }
+      async function loadSentRequests(user) {
+        sentRequests.clear();
+
+        const q = query(
+          collection(db, "friendRequests"),
+          where("from", "==", user.uid),
+          where("status", "==", "pending")
+        );
+
+        const snap = await getDocs(q);
+
+        snap.forEach((docSnap) => {
+          const req = docSnap.data();
+          sentRequests.add(req.to);
+        });
+      }
+
 
       const authModal = document.getElementById("authModal");
+      const betaSeen = localStorage.getItem("betaSeen");
+      if (!betaSeen) {
+        document.getElementById("betaModal").style.display = "flex";
+      }
+
       const userNav = document.getElementById("userNav");
       const profilesGrid = document.getElementById("profilesGrid");
       const bioInput = document.getElementById("bio");
@@ -382,6 +588,15 @@
           <div class="tags">
             <div class="tag">${isYou ? "You" : "Member"}</div>
           </div>
+
+       ${!isYou
+         ? sentRequests.has(profile.uid)
+           ? `<button class="add-friend sent" disabled>Request Sent</button>`
+           : `<button class="add-friend" onclick="sendFriendRequest('${profile.uid}')">Add Friend</button>`
+         : ""
+       }
+
+
         `;
 
         profilesGrid.appendChild(card);
@@ -391,6 +606,10 @@
       // Open auth modal
       window.openAuthIfNeeded = () => {
         authModal.style.display = "flex";
+      };
+      window.closeBetaModal = () => {
+        localStorage.setItem("betaSeen", "true");
+        document.getElementById("betaModal").style.display = "none";
       };
 
       // Open deal modal
@@ -471,10 +690,17 @@
       };
 
       // Auth state listener
+      if (!localStorage.getItem("betaSeen")) {
+        document.getElementById("betaModal").style.display = "flex";
+      }
+
       onAuthStateChanged(auth, async (user) => {
         if (!user) return;
         profilesGrid.innerHTML = "";
         authModal.style.display = "none";
+
+        await loadSentRequests(user);
+        loadIncomingRequests(user);
 
         // Get YOUR profile
         const yourSnap = await getDoc(doc(db, "users", user.uid));
@@ -493,16 +719,86 @@
         const allUsersSnap = await getDocs(collection(db, "users"));
 
         allUsersSnap.forEach((docSnap) => {
-          if (docSnap.id === user.uid) return; // skip yourself
+          if (docSnap.id === user.uid) return;
 
           const profile = docSnap.data();
-          renderProfile(profile, false);
+          renderProfile({ ...profile, uid: docSnap.id }, false);
         });
-      });
 
+      });
+      window.sendFriendRequest = async (targetUid) => {
+        const user = auth.currentUser;
+        if (!user) return alert("You must be logged in");
+
+        const requestId = `${user.uid}_${targetUid}`;
+
+        try {
+          await setDoc(doc(db, "friendRequests", requestId), {
+            from: user.uid,
+            to: targetUid,
+            status: "pending",
+            createdAt: Date.now()
+          });
+
+          alert("Friend request sent!");
+        } catch (err) {
+          alert("Error sending request");
+          console.error(err);
+        }
+      };
+      window.acceptRequest = async (requestId, fromUid) => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        try {
+          // Create friendship
+          await setDoc(doc(db, "friends", `${user.uid}_${fromUid}`), {
+            users: [user.uid, fromUid],
+            createdAt: Date.now()
+          });
+
+          // Remove request
+          await deleteDoc(doc(db, "friendRequests", requestId));
+          sentRequests.delete(fromUid);
+
+          // Refresh UI
+          loadIncomingRequests(user);
+        } catch (err) {
+          console.error(err);
+          alert("Failed to accept request");
+        }
+      };
+      window.declineRequest = async (requestId) => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        try {
+          await deleteDoc(doc(db, "friendRequests", requestId));
+          loadIncomingRequests(user);
+        } catch (err) {
+          console.error(err);
+          alert("Failed to decline request");
+        }
+      };
 
     </script>
      
+    <div id="betaModal" class="modal-overlay">
+      <div class="modal-card">
+        <span class="material-icons modal-icon">science</span>
+
+        <h2>FriendConnect is in Beta</h2>
+
+        <p>
+          You're early! This project is still under active development.
+          Some features may change or break.
+        </p>
+
+        <button class="primary-btn" onclick="closeBetaModal()">
+          Got it
+        </button>
+      </div>
+    </div>
 
 </body>
 </html>
