@@ -827,23 +827,35 @@
         if (!user) return;
 
         try {
-          // Create friendship
+          // Create friendship for YOU
           await setDoc(doc(db, "friends", `${user.uid}_${fromUid}`), {
-            users: [user.uid, fromUid],
+            owner: user.uid,
+            friend: fromUid,
             createdAt: Date.now()
           });
 
-          // Remove request
+          // Create friendship for THEM
+          await setDoc(doc(db, "friends", `${fromUid}_${user.uid}`), {
+            owner: fromUid,
+            friend: user.uid,
+            createdAt: Date.now()
+          });
+
+          // Delete the friend request
           await deleteDoc(doc(db, "friendRequests", requestId));
-          sentRequests.delete(fromUid);
 
           // Refresh UI
+          sentRequests.delete(fromUid);
           loadIncomingRequests(user);
+          loadFriends();
         } catch (err) {
           console.error(err);
           alert("Failed to accept request");
         }
       };
+
+
+       
       window.declineRequest = async (requestId) => {
         const user = auth.currentUser;
         if (!user) return;
@@ -856,7 +868,56 @@
           alert("Failed to decline request");
         }
       };
-     
+      
+
+      window.openFriends = async () => {
+        document.getElementById("friendsModal").style.display = "flex";
+        await loadFriends();
+      };
+
+      window.closeFriends = () => {
+        document.getElementById("friendsModal").style.display = "none";
+      };
+      const friendsBtn = document.getElementById("friendsBtn");
+      friendsBtn.addEventListener("click", openFriends);
+
+      async function loadFriends() {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const friendsList = document.getElementById("friendsList");
+        friendsList.innerHTML = "";
+
+        const q = query(
+          collection(db, "friends"),
+          where("owner", "==", user.uid)
+        );
+
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          friendsList.innerHTML = `<span style="color:var(--muted)">No friends yet</span>`;
+          return;
+        }
+
+        for (const docSnap of snap.docs) {
+          const data = docSnap.data();
+          const friendUid = data.friend;
+
+          const friendSnap = await getDoc(doc(db, "users", friendUid));
+          if (!friendSnap.exists()) continue;
+
+          const friend = friendSnap.data();
+
+          const div = document.createElement("div");
+          div.style.padding = "10px 0";
+          div.style.borderBottom = "1px solid var(--border)";
+          div.innerHTML = `<strong>${friend.name}</strong>`;
+
+          friendsList.appendChild(div);
+        }
+      }
+
 
     </script>
      
@@ -888,60 +949,9 @@
         </div>
       </div>
     </div>
-    <script>
-      const friendsBtn = document.getElementById("friendsBtn");
-
-      friendsBtn.addEventListener("click", () => {
-        openFriends();
-      });
-
-      window.openFriends = async () => {
-        document.getElementById("friendsModal").style.display = "flex";
-        await loadFriends();
-      };
-
-
-      window.closeFriends = () => {
-        document.getElementById("friendsModal").style.display = "none";
-      };
-      async function loadFriends() {
-        const user = auth.currentUser;
-        if (!user) return;
-
-        const friendsList = document.getElementById("friendsList");
-        friendsList.innerHTML = "";
-
-        const q = query(
-          collection(db, "friends"),
-          where("users", "array-contains", user.uid)
-        );
-
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-          friendsList.innerHTML = `<span style="color:var(--muted)">No friends yet</span>`;
-          return;
-        }
-
-        for (const docSnap of snap.docs) {
-          const data = docSnap.data();
-          const friendUid = data.users.find(uid => uid !== user.uid);
-
-          const friendSnap = await getDoc(doc(db, "users", friendUid));
-          if (!friendSnap.exists()) continue;
-
-          const friend = friendSnap.data();
-
-          const div = document.createElement("div");
-          div.style.padding = "10px 0";
-          div.style.borderBottom = "1px solid var(--border)";
-          div.innerHTML = `<strong>${friend.name}</strong>`;
-
-          friendsList.appendChild(div);
-        }
-      }
-
-    </script>
+   
+     
+        
 
 </body>
 </html>
