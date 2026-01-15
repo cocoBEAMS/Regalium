@@ -817,7 +817,8 @@
        
 
         // Render YOU first
-        renderProfile(yourProfile, true);
+        renderProfile({ ...yourProfile, uid: user.uid }, true);
+
 
         // Load ALL other users
         const allUsersSnap = await getDocs(collection(db, "users"));
@@ -871,71 +872,48 @@
         }
       };
       window.acceptRequest = async (requestId, fromUid) => {
-      try {
         const user = auth.currentUser;
-        if (!user) return;
+        if (!user) return alert("Not logged in");
 
-        const batch = writeBatch(db);
-
-        const myUid = user.uid;
+        try {
+          const batch = writeBatch(db);
+          const myUid = user.uid;
 
           // Friend doc for ME
-          const myFriendRef = doc(
-            db,
-            "friends",
-            `${myUid}_${fromUid}`
+          batch.set(
+            doc(db, "friends", `${myUid}_${fromUid}`),
+            {
+              owner: myUid,
+              friend: fromUid,
+              createdAt: Date.now()
+            }
           );
 
           // Friend doc for THEM
-          const theirFriendRef = doc(
-            db,
-            "friends",
-            `${fromUid}_${myUid}`
+          batch.set(
+            doc(db, "friends", `${fromUid}_${myUid}`),
+            {
+              owner: fromUid,
+              friend: myUid,
+              createdAt: Date.now()
+            }
           );
 
-          const requestRef = doc(db, "friendRequests", requestId);
-
-          batch.set(myFriendRef, {
-            owner: myUid,
-            friend: fromUid,
-            createdAt: Date.now()
-          });
-
-          batch.set(theirFriendRef, {
-            owner: fromUid,
-            friend: myUid,
-            createdAt: Date.now()
-          });
-
-          batch.delete(requestRef);
+          // Delete request
+          batch.delete(doc(db, "friendRequests", requestId));
 
           await batch.commit();
+          friendsSet.add(fromUid);
 
           await loadFriends();
-          // 🔄 Refresh profile grid so "Add Friend" comes back
-          profilesGrid.innerHTML = "";
-
-          // Render YOU
-          const yourSnap = await getDoc(doc(db, "users", user.uid));
-          if (yourSnap.exists()) {
-            renderProfile({ ...yourSnap.data(), uid: user.uid }, true);
-
-          }
-
-          // Render others
-          const allUsersSnap = await getDocs(collection(db, "users"));
-          allUsersSnap.forEach((docSnap) => {
-            if (docSnap.id === user.uid) return;
-            renderProfile({ ...docSnap.data(), uid: docSnap.id }, false);
-          });
-
-          await loadIncomingRequests(auth.currentUser);
+          await loadIncomingRequests(user);
 
         } catch (err) {
           console.error("ACCEPT FAILED:", err);
           alert("Failed to accept friend request");
         }
       };
+
       window.unfriend = async (friendUid) => {
         try {
           const user = auth.currentUser;
