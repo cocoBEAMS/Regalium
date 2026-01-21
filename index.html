@@ -947,46 +947,45 @@
       
 
       onAuthStateChanged(auth, async (user) => {
-        if (!user) return;
+      if (!user) {
+        userNav.textContent = "Sign in";
         profilesGrid.innerHTML = "";
+        authModal.style.display = "flex";
+        return;
+      }
+
+
         authModal.style.display = "none";
 
-        await loadSentRequests(user);
-        await loadFriends();       
-        await loadIncomingRequests(user);
-
-        
-        // Get YOUR profile
+        // 1️⃣ Load YOUR profile FIRST
         const yourSnap = await getDoc(doc(db, "users", user.uid));
         if (!yourSnap.exists()) return;
 
-        const yourProfile = yourSnap.data();
-        currentUserProfile = yourProfile;
-        if (yourProfile.friendRequestsEnabled === false) {
+        currentUserProfile = yourSnap.data();
+        userNav.textContent = currentUserProfile.name;
+
+        // 2️⃣ Load relationship data
+        await loadFriends();
+        await loadSentRequests(user);
+        await loadIncomingRequests(user);
+
+        // 3️⃣ Draw profiles ONCE
+        await refreshProfiles();
+    
+        if (currentUserProfile.friendRequestsEnabled === false) {
           showAdminNotice(
             "Friend requests disabled",
             "An admin has temporarily disabled your ability to send friend requests."
           );
         }
 
-        userNav.textContent = yourProfile.name;
+         
 
         
        
 
-        // Render YOU first
-        renderProfile({ ...yourProfile, uid: user.uid }, true);
-
-
-        // Load ALL other users
-        const allUsersSnap = await getDocs(collection(db, "users"));
-
-        allUsersSnap.forEach((docSnap) => {
-          if (docSnap.id === user.uid) return;
-
-          const profile = docSnap.data();
-          renderProfile({ ...profile, uid: docSnap.id }, false);
-        });
+      
+        
 
       });
      
@@ -995,6 +994,8 @@
         const user = auth.currentUser;
         if (!user) return alert("You must be logged in");
          if (sentRequests.has(targetUid)) return;
+        if (friendsSet.has(targetUid)) return;
+
         const requestId = `${user.uid}_${targetUid}`;
 
         try {
@@ -1009,21 +1010,8 @@
           sentRequests.add(targetUid);
 
           // ✅ Re-render UI
-          profilesGrid.innerHTML = "";
+          await refreshProfiles();
 
-          // Render YOU first
-          const yourSnap = await getDoc(doc(db, "users", user.uid));
-          if (yourSnap.exists()) {
-            renderProfile({ ...yourSnap.data(), uid: user.uid }, true);
-
-          }
-
-          // Render all other users
-          const allUsersSnap = await getDocs(collection(db, "users"));
-          allUsersSnap.forEach((docSnap) => {
-            if (docSnap.id === user.uid) return;
-            renderProfile({ ...docSnap.data(), uid: docSnap.id }, false);
-          });
 
           
         } catch (err) {
@@ -1064,9 +1052,12 @@
 
           await batch.commit();
           friendsSet.add(fromUid);
+          sentRequests.delete(fromUid);
 
           await loadFriends();
           await loadIncomingRequests(user);
+          await refreshProfiles();
+
 
         } catch (err) {
           console.error("ACCEPT FAILED:", err);
@@ -1104,21 +1095,7 @@
           // ✅ Refresh UI
           await loadFriends();
           // 🔄 Refresh profile grid so "Add Friend" comes back
-          profilesGrid.innerHTML = "";
-
-          // Render YOU
-          const yourSnap = await getDoc(doc(db, "users", user.uid));
-          if (yourSnap.exists()) {
-            renderProfile({ ...yourSnap.data(), uid: user.uid }, true);
-
-          }
-
-          // Render others
-          const allUsersSnap = await getDocs(collection(db, "users"));
-          allUsersSnap.forEach((docSnap) => {
-            if (docSnap.id === user.uid) return;
-            renderProfile({ ...docSnap.data(), uid: docSnap.id }, false);
-          });
+          await refreshProfiles();
 
 
         } catch (err) {
@@ -1138,7 +1115,9 @@
 
         try {
           await deleteDoc(doc(db, "friendRequests", requestId));
-          loadIncomingRequests(user);
+          await loadIncomingRequests(user);
+          await refreshProfiles();
+
         } catch (err) {
           console.error(err);
           alert("Failed to decline request");
@@ -1154,12 +1133,7 @@
       window.closeFriends = () => {
         document.getElementById("friendsModal").style.display = "none";
       };
-      window.addEventListener("DOMContentLoaded", () => {
-        const friendsBtn = document.getElementById("friendsBtn");
-        if (friendsBtn) {
-          friendsBtn.addEventListener("click", openFriends);
-        }
-      });
+         
 
 
 
@@ -1245,14 +1219,35 @@
         notice.innerHTML = `<strong>${title}</strong><br>${message}`;
         document.body.prepend(notice);
       }
+      async function refreshProfiles() {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        profilesGrid.innerHTML = "";
+
+        // Render YOU
+        const yourSnap = await getDoc(doc(db, "users", user.uid));
+        if (yourSnap.exists()) {
+          renderProfile({ ...yourSnap.data(), uid: user.uid }, true);
+        }
+
+        // Render everyone else
+        const allUsersSnap = await getDocs(collection(db, "users"));
+        allUsersSnap.forEach((docSnap) => {
+          if (docSnap.id === user.uid) return;
+          renderProfile({ ...docSnap.data(), uid: docSnap.id }, false);
+        });
+      }
+
 
     </script>
      
    
     </div>
-    <button id="friendsBtn" class="friends-btn">
+    <button id="friendsBtn" class="friends-btn" onclick="openFriends()">
       Friends
     </button>
+
     <div id="friendsModal" class="friends-modal">
       <div class="friends-content">
         <span class="friends-close" onclick="closeFriends()">×</span>
