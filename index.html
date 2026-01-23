@@ -993,77 +993,38 @@
       window.sendFriendRequest = async (targetUid) => {
         const user = auth.currentUser;
         if (!user) return alert("You must be logged in");
-         if (sentRequests.has(targetUid)) return;
+
+        if (sentRequests.has(targetUid)) return;
         if (friendsSet.has(targetUid)) return;
 
         const requestId = `${user.uid}_${targetUid}`;
+        const requestRef = doc(db, "friendRequests", requestId);
 
         try {
-          await setDoc(doc(db, "friendRequests", requestId), {
+          const snap = await getDoc(requestRef);
+          if (snap.exists()) {
+            // Request already exists — silently ignore
+            sentRequests.add(targetUid);
+            await refreshProfiles();
+            return;
+          }
+
+          await setDoc(requestRef, {
             from: user.uid,
             to: targetUid,
             status: "pending",
             createdAt: Date.now()
           });
 
-          // ✅ Update local state immediately
           sentRequests.add(targetUid);
-
-          // ✅ Re-render UI
           await refreshProfiles();
 
-
-          
         } catch (err) {
-          alert("Error sending request");
-          console.error(err);
+          console.error("SEND FAILED:", err);
+          alert("Error sending friend request");
         }
       };
-      window.acceptRequest = async (requestId, fromUid) => {
-        const user = auth.currentUser;
-        if (!user) return alert("Not logged in");
 
-        try {
-          const batch = writeBatch(db);
-          const myUid = user.uid;
-
-          // Friend doc for ME
-          batch.set(
-            doc(db, "friends", `${myUid}_${fromUid}`),
-            {
-              owner: myUid,
-              friend: fromUid,
-              createdAt: Date.now()
-            }
-          );
-
-          // Friend doc for THEM
-          batch.set(
-            doc(db, "friends", `${fromUid}_${myUid}`),
-            {
-              owner: fromUid,
-              friend: myUid,
-              createdAt: Date.now()
-            }
-          );
-
-          // Delete request
-          batch.delete(doc(db, "friendRequests", requestId));
-
-          await batch.commit();
-          friendsSet.add(fromUid);
-          sentRequests.delete(fromUid);
-
-          await loadFriends();
-          await loadIncomingRequests(user);
-          await refreshProfiles();
-
-
-        } catch (err) {
-          console.error("ACCEPT FAILED:", err);
-          alert("Failed to accept friend request");
-        }
-      };
 
       window.unfriend = async (friendUid) => {
         try {
@@ -1238,9 +1199,6 @@
           renderProfile({ ...docSnap.data(), uid: docSnap.id }, false);
         });
       }
-document.addEventListener("contextmenu", (e) => {
-  e.preventDefault();
-});
 
 
     </script>
@@ -1277,7 +1235,7 @@ document.addEventListener("contextmenu", (e) => {
       </div>
 
       <div class="footer-bottom">
-        © 2026 RegaliumGF Entertainment. All rights reserved.
+        © 2026 FriendConnect. All rights reserved.
       </div>
     </footer>
 
