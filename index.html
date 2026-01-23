@@ -1084,7 +1084,50 @@
           alert("Failed to decline request");
         }
       };
-      
+      window.acceptRequest = async (requestId, fromUid) => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        try {
+          const batch = writeBatch(db);
+
+          // 1️⃣ Create friendship for YOU
+          const myFriendRef = doc(db, "friends", `${user.uid}_${fromUid}`);
+          batch.set(myFriendRef, {
+            owner: user.uid,
+            friend: fromUid,
+            createdAt: Date.now()
+          });
+
+          // 2️⃣ Create friendship for THEM
+          const theirFriendRef = doc(db, "friends", `${fromUid}_${user.uid}`);
+          batch.set(theirFriendRef, {
+            owner: fromUid,
+            friend: user.uid,
+            createdAt: Date.now()
+          });
+
+          // 3️⃣ Delete the request
+          const requestRef = doc(db, "friendRequests", requestId);
+          batch.delete(requestRef);
+
+          await batch.commit();
+
+          // 4️⃣ Update local state
+          friendsSet.add(fromUid);
+          sentRequests.delete(fromUid);
+
+          // 5️⃣ Refresh UI
+          await loadIncomingRequests(user);
+          await loadFriends();
+          await refreshProfiles();
+
+        } catch (err) {
+          console.error("ACCEPT FAILED:", err);
+          alert("Failed to accept request");
+        }
+      };
+
 
       window.openFriends = async () => {
         document.getElementById("friendsModal").style.display = "flex";
