@@ -4,6 +4,22 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
   <style>
+    .interest-chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all .15s ease;
+    }
+
+    .interest-chip.selected {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: rgba(59,130,246,0.1);
+    }
+
     .fc-footer {
       margin-top: 80px;
       border-top: 1px solid #1e2638;
@@ -380,7 +396,7 @@
   </style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FriendConnect</title>
+  <title>Regalium</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -591,7 +607,7 @@
 <body>
 
   <nav>
-    <div class="logo">FriendConnect</div>
+    <div class="logo">Regalium</div>
     <div class="nav-actions">
       <div class="nav-link" id="userNav" onclick="openAuthIfNeeded()">Sign in</div>
       <button class="nav-btn" id="openDeal">Best Friend Deal</button>
@@ -603,9 +619,9 @@
     <div class="modal">
      
 
-      <div class="badge">FriendConnect</div>
+      <div class="badge">Regalium</div>
       <h2 id="authTitle">Make an account</h2>
-      <p>Create your FriendConnect profile. Your Profile is stored securely in the cloud. Avoid making your password anything important. BY MAKING AN ACCOUNT YOU AGREE TO OUR TERMS, AND PRIVACY POLICY</p>
+      <p>Create your Regalium profile. Your Profile is stored securely in the cloud. Avoid making your password anything important. BY MAKING AN ACCOUNT YOU AGREE TO OUR TERMS, AND PRIVACY POLICY</p>
       <input id="email" placeholder="Email"
         style="width:100%;margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0a0d14;color:var(--text);" />
 
@@ -630,7 +646,7 @@
 
   <div class="premium-banner">
     <div>
-      <strong>FriendConnect Premium</strong>
+      <strong>Upgrade your plan!</strong>
       <span>Priority matches, unlimited requests, verified badge</span>
     </div>
     <button onclick="openDealFromBanner()">Upgrade</button>
@@ -642,6 +658,14 @@
     </div>
     <button>Open Chat</button>
   </div>
+  <div class="chat-banner" onclick="openInterests()">
+    <div>
+      <strong>Choose your interests</strong>
+      <span>Find people with similar hobbies</span>
+    </div>
+    <button>Edit</button>
+  </div>
+
 
   <div class="container">
     <h2 style="margin-bottom:12px;">
@@ -830,9 +854,13 @@
 
           ${isLongBio ? `<span class="read-more">Read more</span>` : ""}
 
-          <div class="tags">
-            <div class="tag">${isYou ? "You" : "Member"}</div>
-          </div>
+        <div class="tags">
+          ${(profile.interests || []).map(i =>
+            `<div class="tag">${i}</div>`
+          ).join("")}
+          ${isYou ? `<div class="tag">You</div>` : ""}
+        </div>
+
 
       ${!isYou
         ? friendsSet.has(profile.uid)
@@ -1237,11 +1265,113 @@
 
         // Render everyone else
         const allUsersSnap = await getDocs(collection(db, "users"));
+        const others = [];
+
         allUsersSnap.forEach((docSnap) => {
           if (docSnap.id === user.uid) return;
-          renderProfile({ ...docSnap.data(), uid: docSnap.id }, false);
+          others.push({ ...docSnap.data(), uid: docSnap.id });
+        });
+
+        const myInterests = new Set(currentUserProfile?.interests || []);
+
+        others.sort((a, b) => {
+          const aShared = (a.interests || []).filter(i => myInterests.has(i)).length;
+          const bShared = (b.interests || []).filter(i => myInterests.has(i)).length;
+          return bShared - aShared;
+        });
+
+        others.forEach(profile => renderProfile(profile, false));
+
+      }
+      const ALL_INTERESTS = [
+        "Gaming",
+        "Music",
+        "Art",
+        "Sports",
+        "Coding",
+        "Movies",
+        "Anime",
+        "Reading",
+        "Fitness",
+        "Travel"
+      ];
+
+      let selectedInterests = new Set();
+
+      window.openInterests = () => {
+        if (!currentUserProfile) {
+          alert("Your profile is still loading. Try again in a second.");
+          return;
+        }
+
+        document.getElementById("interestsModal").style.display = "flex";
+        renderInterestChips();
+      };
+
+
+      window.closeInterests = () => {
+        document.getElementById("interestsModal").style.display = "none";
+      };
+
+      function renderInterestChips() {
+        const container = document.getElementById("interestChips");
+        container.innerHTML = "";
+
+        selectedInterests = new Set(currentUserProfile?.interests || []);
+
+        ALL_INTERESTS.forEach((interest) => {
+          const chip = document.createElement("div");
+          chip.className = "interest-chip";
+          chip.textContent = interest;
+
+          if (selectedInterests.has(interest)) {
+            chip.classList.add("selected");
+          }
+
+          chip.onclick = () => {
+            if (selectedInterests.has(interest)) {
+              selectedInterests.delete(interest);
+              chip.classList.remove("selected");
+            } else {
+              selectedInterests.add(interest);
+              chip.classList.add("selected");
+            }
+          };
+
+          container.appendChild(chip);
         });
       }
+
+      window.saveInterests = async () => {
+        try {
+          const user = auth.currentUser;
+          if (!user) {
+            alert("Not logged in");
+            return;
+          }
+
+          console.log("Saving interests:", [...selectedInterests]);
+
+          await setDoc(
+            doc(db, "users", user.uid),
+            { interests: Array.from(selectedInterests) },
+            { merge: true }
+          );
+
+          const snap = await getDoc(doc(db, "users", user.uid));
+          currentUserProfile = snap.data();
+
+          closeInterests();
+          await refreshProfiles();
+
+          console.log("Interests saved successfully");
+
+        } catch (err) {
+          console.error("SAVE INTERESTS FAILED:", err);
+          alert("Failed to save interests: " + err.message);
+        }
+      };
+
 
 
     </script>
@@ -1262,26 +1392,43 @@
       </div>
     </div>
    
-     
+     <div id="interestsModal" class="friends-modal">
+       <div class="friends-content">
+         <span class="friends-close" onclick="closeInterests()">×</span>
+         <h2>Select your interests</h2>
+
+         <div id="interestChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px"></div>
+
+         <button
+           class="add-friend"
+           style="margin-top:16px"
+           onclick="saveInterests()"
+         >
+           Save interests
+         </button>
+       </div>
+     </div>
+
         
     <footer class="fc-footer">
       <div class="footer-inner">
         <div class="footer-left">
-          <strong>FriendConnect</strong>
+          <strong>Regalim</strong>
           <span>Make real connections.</span>
         </div>
 
         <div class="footer-right">
           <a href="terms.html">Terms</a>
           <a href="privacy.html">Privacy</a>
-           <a href="verify.html">Verification Policy</a
+          <a href="verify.html">Verification Policy</a>
         </div>
       </div>
 
       <div class="footer-bottom">
-        © 2026 FriendConnect. All rights reserved.
+        © 2026 The RegaliumGF Entertainment Group. All rights reserved.
       </div>
     </footer>
+
 
 </body>
 </html>
