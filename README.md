@@ -1,0 +1,1 @@
+Regalium is the premium branch of Friend Connect owned by The RegaliumGF Entertainment Group. Regalium is a friend making service solely for making friends. You can chat, send friend requests, and make an account all for FREE. You can obtain plans for applying, as pricing will come later when we exit our beta stage. Check it out now!
