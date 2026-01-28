@@ -443,3 +443,25 @@ window.saveInterests = async () => {
   closeInterests();
   await refreshProfiles();
 };
+import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const announcementBanner = document.getElementById("globalAnnouncement");
+const announcementRef = doc(db, "announcements", "global");
+
+onSnapshot(announcementRef, (docSnap) => {
+  if (!docSnap.exists()) {
+    announcementBanner.classList.add("hidden");
+    return;
+  }
+
+  const data = docSnap.data();
+  if (data.active && data.message) {
+    announcementBanner.textContent = data.message;
+    announcementBanner.classList.remove("hidden");
+  } else {
+    announcementBanner.classList.add("hidden");
+  }
+});
+
+// Optional: allow users to click to dismiss
+announcementBanner.onclick = () => announcementBanner.classList.add("hidden");
