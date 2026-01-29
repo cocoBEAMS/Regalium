@@ -127,149 +127,158 @@
   </div>
 
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import {
-    getFirestore,
-    collection,
-    getDocs,
-    doc,
-    updateDoc,
-    setDoc,
-    serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+      getAuth, 
+      onAuthStateChanged, 
+      GoogleAuthProvider, 
+      signInWithPopup 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      doc,
+      updateDoc,
+      setDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+    const firebaseConfig = {
+      apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
+      authDomain: "friendconnect-99a50.firebaseapp.com",
+      projectId: "friendconnect-99a50",
+      storageBucket: "friendconnect-99a50.firebasestorage.app",
+      messagingSenderId: "904196830848",
+      appId: "1:904196830848:web:50c15121c2c04f1ea01865",
+      measurementId: "G-R4JKSVM9F7"
+    };
 
-  const firebaseConfig = {
-  apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
-  authDomain: "friendconnect-99a50.firebaseapp.com",
-  projectId: "friendconnect-99a50",
-  storageBucket: "friendconnect-99a50.firebasestorage.app",
-  messagingSenderId: "904196830848",
-  appId: "1:904196830848:web:50c15121c2c04f1ea01865",
-  measurementId: "G-R4JKSVM9F7"
-};
+    const ADMIN_UID = "Wl0cjJMgKtW1Fj28aibk7dZSCWi2"; // 👈 your admin UID
 
-  const ADMIN_UID = "Wl0cjJMgKtW1Fj28aibk7dZSCWi2"; // 👈 IMPORTANT
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+    // ---------------------------
+    // FORCE GOOGLE LOGIN (Replit fix)
+    // ---------------------------
+    const provider = new GoogleAuthProvider();
 
-  const usersList = document.getElementById("usersList");
-
-  onAuthStateChanged(auth, async (user) => {
-    if (!user || user.uid !== ADMIN_UID) {
-      usersList.innerHTML = `
-        <div class="blocked">
-          <h2>Access denied</h2>
-          <p>You are not authorized to view this page.</p>
-        </div>
-      `;
-      return;
+    if (!auth.currentUser) {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (err) {
+        console.error("Login failed:", err);
+        alert("Failed to sign in. Reload the page and try again.");
+      }
     }
 
-    loadUsers();
-  });
+    // ---------------------------
+    // Admin panel logic
+    // ---------------------------
+    const usersList = document.getElementById("usersList");
 
-  async function loadUsers() {
-    usersList.innerHTML = "";
+    onAuthStateChanged(auth, async (user) => {
+      console.log("LOGGED IN UID:", user?.uid);
+      console.log("EXPECTED ADMIN UID:", ADMIN_UID);
 
-    const snap = await getDocs(collection(db, "users"));
+      if (!user || user.uid !== ADMIN_UID) {
+        usersList.innerHTML = `
+          <div class="blocked">
+            <h2>Access denied</h2>
+            <p>You are not authorized to view this page.</p>
+            <p style="font-size:12px;opacity:.6">Your UID: ${user?.uid}</p>
+          </div>
+        `;
+        return;
+      }
 
-    snap.forEach((docSnap) => {
-      const user = docSnap.data();
-      const uid = docSnap.id;
-      const verified = user.verified === true;
-
-      const div = document.createElement("div");
-      div.className = "user-card";
-
-      div.innerHTML = `
-        <div class="user-info">
-          <strong>${user.name || "Unnamed User"}</strong>
-          <span>${uid}</span>
-        </div>
-
-       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-         <select class="plan-select">
-           <option value="free">Regalium</option>
-           <option value="plus">Regalium+</option>
-           <option value="platinum">Platinum</option>
-           <option value="elite">Elite</option>
-         </select>
-
-         <button class="verify-btn">
-           ${verified ? "Unverify" : "Verify"}
-         </button>
-
-         <button class="toggle-fr">
-           ${user.friendRequestsEnabled === false ? "Enable Requests" : "Disable Requests"}
-         </button>
-       </div>
-
-      `;
-      // --------------------
-      // ADMIN CONTROLS LOGIC
-      // --------------------
-
-      // Plan dropdown
-      const planSelect = div.querySelector(".plan-select");
-      planSelect.value = user.plan || "free";
-
-      planSelect.onchange = async () => {
-        await updateDoc(doc(db, "users", uid), {
-          plan: planSelect.value
-        });
-        loadUsers();
-      };
-
-      // Verify button
-      div.querySelector(".verify-btn").onclick = async () => {
-        await updateDoc(doc(db, "users", uid), {
-          verified: !verified
-        });
-        loadUsers();
-      };
-
-      // Friend requests toggle
-      div.querySelector(".toggle-fr").onclick = async () => {
-        await updateDoc(doc(db, "users", uid), {
-          friendRequestsEnabled: !(user.friendRequestsEnabled !== false)
-        });
-        loadUsers();
-      };
-
-
-     
-      usersList.appendChild(div);
-    });
-  }
-  const announcementRef = doc(db, "announcements", "global");
-
-  document.getElementById("sendAnnouncement").onclick = async () => {
-    const text = document.getElementById("announcementInput").value.trim();
-    if (!text) return alert("Announcement cannot be empty");
-
-    await setDoc(announcementRef, {
-      active: true,
-      message: text,
-      createdAt: serverTimestamp()
+      loadUsers();
     });
 
-    alert("Announcement sent 🚀");
-  };
+    async function loadUsers() {
+      usersList.innerHTML = "";
 
-  document.getElementById("disableAnnouncement").onclick = async () => {
-    await setDoc(announcementRef, {
-      active: false
-    }, { merge: true });
+      const snap = await getDocs(collection(db, "users"));
 
-    alert("Announcement disabled");
-  };
+      snap.forEach((docSnap) => {
+        const user = docSnap.data();
+        const uid = docSnap.id;
+        const verified = user.verified === true;
 
-</script>
+        const div = document.createElement("div");
+        div.className = "user-card";
+
+        div.innerHTML = `
+          <div class="user-info">
+            <strong>${user.name || "Unnamed User"}</strong>
+            <span>${uid}</span>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <select class="plan-select">
+              <option value="free">Regalium</option>
+              <option value="plus">Regalium+</option>
+              <option value="platinum">Platinum</option>
+              <option value="elite">Elite</option>
+            </select>
+
+            <button class="verify-btn">
+              ${verified ? "Unverify" : "Verify"}
+            </button>
+
+            <button class="toggle-fr">
+              ${user.friendRequestsEnabled === false ? "Enable Requests" : "Disable Requests"}
+            </button>
+          </div>
+        `;
+
+        // Plan dropdown
+        const planSelect = div.querySelector(".plan-select");
+        planSelect.value = user.plan || "free";
+        planSelect.onchange = async () => {
+          await updateDoc(doc(db, "users", uid), { plan: planSelect.value });
+          loadUsers();
+        };
+
+        // Verify button
+        div.querySelector(".verify-btn").onclick = async () => {
+          await updateDoc(doc(db, "users", uid), { verified: !verified });
+          loadUsers();
+        };
+
+        // Friend requests toggle
+        div.querySelector(".toggle-fr").onclick = async () => {
+          await updateDoc(doc(db, "users", uid), { friendRequestsEnabled: !(user.friendRequestsEnabled !== false) });
+          loadUsers();
+        };
+
+        usersList.appendChild(div);
+      });
+    }
+
+    const announcementRef = doc(db, "announcements", "global");
+
+    document.getElementById("sendAnnouncement").onclick = async () => {
+      const text = document.getElementById("announcementInput").value.trim();
+      if (!text) return alert("Announcement cannot be empty");
+
+      await setDoc(announcementRef, {
+        active: true,
+        message: text,
+        createdAt: serverTimestamp()
+      });
+
+      alert("Announcement sent 🚀");
+    };
+
+    document.getElementById("disableAnnouncement").onclick = async () => {
+      await setDoc(announcementRef, { active: false }, { merge: true });
+      alert("Announcement disabled");
+    };
+  </script>
 
 </body>
 </html>
