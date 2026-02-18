@@ -1,25 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Chat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
   <style>
     body {
       margin: 0;
-      font-family: 'Inter', sans-serif;
       height: 100vh;
       display: flex;
       flex-direction: column;
       background: #0b0f1a;
       color: white;
+      font-family: Inter, sans-serif;
     }
 
     header {
       padding: 16px;
-      font-weight: 600;
       border-bottom: 1px solid #1e2638;
+      font-weight: 600;
     }
 
     #messages {
@@ -36,67 +37,52 @@
       padding: 10px 14px;
       border-radius: 14px;
       font-size: 14px;
-      word-wrap: break-word;
     }
 
-    .me { align-self: flex-end; background: #3b82f6; }
-    .them { align-self: flex-start; background: #1e2638; }
+    .me {
+      align-self: flex-end;
+      background: #3b82f6;
+    }
+
+    .them {
+      align-self: flex-start;
+      background: #1e2638;
+    }
 
     footer {
-      padding: 12px;
-      border-top: 1px solid #2c3349;
-      background: #121826;
-    }
-
-    #footerContainer {
       display: flex;
+      padding: 12px;
+      border-top: 1px solid #1e2638;
       gap: 8px;
-      max-width: 800px;
-      margin: auto;
-      background: #1e2638;
-      padding: 8px;
-      border-radius: 16px;
-      align-items: center;
     }
 
-    #footerContainer input {
+    input {
       flex: 1;
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 10px;
+      border-radius: 10px;
       border: none;
       background: #0f1420;
       color: white;
-      font-size: 14px;
     }
 
-    #footerContainer input[type="datetime-local"] {
-      display: none;
-    }
-
-    #footerContainer button {
+    button {
       padding: 10px 16px;
-      border-radius: 12px;
+      border-radius: 10px;
       border: none;
       background: #3b82f6;
       color: white;
-      font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      font-weight: 600;
     }
 
-    #footerContainer button:hover {
-      background: #60a5fa;
-      box-shadow: 0 0 10px #3b82f6;
-    }
-
-    /* Friend modal */
+    /* Friend picker modal */
     #friendModal {
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.7);
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       z-index: 9999;
     }
 
@@ -105,19 +91,11 @@
       padding: 20px;
       border-radius: 14px;
       width: 320px;
-      text-align: center;
     }
 
     #friendBox button {
       width: 100%;
       margin-top: 8px;
-      padding: 8px;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      background: #3b82f6;
-      color: white;
-      font-weight: 600;
     }
   </style>
 </head>
@@ -127,12 +105,8 @@
 <div id="messages"></div>
 
 <footer>
-  <div id="footerContainer">
-    <input id="chatInput" placeholder="Type a message..." />
-    <input type="datetime-local" id="unlockInput" />
-    <button id="timeCapsuleBtn">🕒</button>
-    <button id="sendBtn">Send</button>
-  </div>
+  <input id="chatInput" placeholder="Type a message..." />
+  <button id="sendBtn">Send</button>
 </footer>
 
 <!-- Friend Picker -->
@@ -146,7 +120,19 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getFirestore, collection, query, where, getDocs, doc, getDoc, addDoc, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    collection,
+    getDocs,
+    addDoc,
+    query,
+    where,
+    orderBy,
+    onSnapshot,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
@@ -167,28 +153,34 @@
   const headerEl = document.getElementById("chatHeader");
   const friendModal = document.getElementById("friendModal");
   const friendsList = document.getElementById("friendsList");
-  const unlockInput = document.getElementById("unlockInput");
-  const timeCapsuleBtn = document.getElementById("timeCapsuleBtn");
 
-  let currentUser = null;
   let currentChatId = null;
-  let capsuleMode = false;
+  let currentUser = null;
 
   function getChatId(a, b) {
-    return [a,b].sort().join("_");
+    return [a, b].sort().join("_");
   }
 
   async function loadFriends() {
     friendsList.innerHTML = "";
-    const q = query(collection(db, "friends"), where("owner", "==", currentUser.uid));
+
+    const q = query(
+      collection(db, "friends"),
+      where("owner", "==", currentUser.uid)
+    );
+
     const snap = await getDocs(q);
-    snap.forEach(async f => {
-      const friendSnap = await getDoc(doc(db, "users", f.data().friend));
+
+    snap.forEach(async (docSnap) => {
+      const friendUid = docSnap.data().friend;
+      const friendSnap = await getDoc(doc(db, "users", friendUid));
       if (!friendSnap.exists()) return;
+
       const friend = friendSnap.data();
+
       const btn = document.createElement("button");
       btn.textContent = friend.name;
-      btn.onclick = () => openChat(f.data().friend, friend.name);
+      btn.onclick = () => openChat(friendUid, friend.name);
       friendsList.appendChild(btn);
     });
   }
@@ -201,22 +193,18 @@
   }
 
   function listenForMessages() {
-    const q = query(collection(db, "chats", currentChatId, "messages"), orderBy("createdAt"));
-    onSnapshot(q, snap => {
-      messagesEl.innerHTML = "";
-      snap.forEach(docSnap => {
-        const msg = docSnap.data();
-        const now = new Date();
-        const unlockAt = msg.unlockAt ? msg.unlockAt.toDate() : null;
-        const isUnlocked = !unlockAt || unlockAt <= now;
+    const q = query(
+      collection(db, "chats", currentChatId, "messages"),
+      orderBy("createdAt")
+    );
 
+    onSnapshot(q, (snap) => {
+      messagesEl.innerHTML = "";
+      snap.forEach((doc) => {
+        const msg = doc.data();
         const div = document.createElement("div");
         div.className = `msg ${msg.sender === currentUser.uid ? "me" : "them"}`;
-        div.textContent = isUnlocked ? msg.text : "⏳ Time Capsule — unlocks later";
-        if (!isUnlocked) {
-          div.style.fontStyle = "italic";
-          div.style.opacity = 0.6;
-        }
+        div.textContent = msg.text;
         messagesEl.appendChild(div);
       });
       messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -224,36 +212,32 @@
   }
 
   async function sendMessage() {
-    if (!currentUser || !currentChatId) return;
     const text = inputEl.value.trim();
-    if (!text) return;
+    if (!text || !currentChatId) return;
 
-    const unlockAt = capsuleMode && unlockInput.value ? new Date(unlockInput.value) : null;
-    await addDoc(collection(db, "chats", currentChatId, "messages"), {
-      text,
-      sender: currentUser.uid,
-      createdAt: serverTimestamp(),
-      unlockAt: unlockAt
-    });
+    await addDoc(
+      collection(db, "chats", currentChatId, "messages"),
+      {
+        text,
+        sender: currentUser.uid,
+        createdAt: serverTimestamp()
+      }
+    );
 
     inputEl.value = "";
-    unlockInput.value = "";
-    unlockInput.style.display = capsuleMode ? "inline-block" : "none";
-    capsuleMode = false;
   }
 
   sendBtn.onclick = sendMessage;
-  inputEl.addEventListener("keydown", e => { if(e.key === "Enter") sendMessage(); });
-  timeCapsuleBtn.onclick = () => {
-    capsuleMode = !capsuleMode;
-    unlockInput.style.display = capsuleMode ? "inline-block" : "none";
-  };
+  inputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter") sendMessage();
+  });
 
-  onAuthStateChanged(auth, async user => {
+  onAuthStateChanged(auth, async (user) => {
     if (!user) return;
     currentUser = user;
     await loadFriends();
   });
 </script>
+
 </body>
 </html>
