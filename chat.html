@@ -215,8 +215,9 @@
   }
 
   async function sendMessage() {
+    if (!currentUser || !currentChatId) return; // must be signed in and have a friend selected
     const text = inputEl.value.trim();
-    if (!text || !currentChatId) return;
+    if (!text) return;
 
     const unlockAt = capsuleMode && unlockInput.value ? new Date(unlockInput.value) : null;
 
