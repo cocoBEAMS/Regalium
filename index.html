@@ -4,6 +4,16 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
   <style>
+    .legal-link {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .legal-link:hover {
+      text-decoration: underline;
+    }
+
     .global-announcement {
       max-width: 1100px;
       margin: 16px auto;
@@ -645,7 +655,15 @@
 
       <div class="badge">Regalium</div>
       <h2 id="authTitle">Make an account</h2>
-      <p>Create your Regalium profile. Your Profile is stored securely in the cloud. Avoid making your password anything important. BY MAKING AN ACCOUNT YOU AGREE TO OUR TERMS, AND PRIVACY POLICY</p>
+      <p style="line-height:1.6;">
+        Create your Regalium profile. Your profile is stored securely in the cloud.
+        Use a strong password.
+        By creating an account, you agree to our
+        <a href="terms.html" target="_blank" class="legal-link">Terms of Service</a>
+        and
+        <a href="privacy.html" target="_blank" class="legal-link">Privacy Policy</a>.
+      </p>
+
       <input id="email" placeholder="Email"
         style="width:100%;margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#0a0d14;color:var(--text);" />
 
@@ -771,7 +789,7 @@
     </footer>
   
  
-  <script type="module" src="main.js"></script>
+  <script type="module" src="friend-connect.js"></script>
 
 
 </body>
