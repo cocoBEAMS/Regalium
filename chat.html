@@ -106,6 +106,8 @@
 
 <footer>
   <input id="chatInput" placeholder="Type a message..." />
+  <input type="datetime-local" id="unlockInput" style="width:160px; margin-left:8px; display:none;" />
+  <button id="timeCapsuleBtn">🕒</button>
   <button id="sendBtn">Send</button>
 </footer>
 
@@ -153,9 +155,12 @@
   const headerEl = document.getElementById("chatHeader");
   const friendModal = document.getElementById("friendModal");
   const friendsList = document.getElementById("friendsList");
+  const unlockInput = document.getElementById("unlockInput");
+  const timeCapsuleBtn = document.getElementById("timeCapsuleBtn");
 
   let currentChatId = null;
   let currentUser = null;
+  let capsuleMode = false;
 
   function getChatId(a, b) {
     return [a, b].sort().join("_");
@@ -163,21 +168,14 @@
 
   async function loadFriends() {
     friendsList.innerHTML = "";
-
-    const q = query(
-      collection(db, "friends"),
-      where("owner", "==", currentUser.uid)
-    );
-
+    const q = query(collection(db, "friends"), where("owner", "==", currentUser.uid));
     const snap = await getDocs(q);
 
     snap.forEach(async (docSnap) => {
       const friendUid = docSnap.data().friend;
       const friendSnap = await getDoc(doc(db, "users", friendUid));
       if (!friendSnap.exists()) return;
-
       const friend = friendSnap.data();
-
       const btn = document.createElement("button");
       btn.textContent = friend.name;
       btn.onclick = () => openChat(friendUid, friend.name);
@@ -193,18 +191,23 @@
   }
 
   function listenForMessages() {
-    const q = query(
-      collection(db, "chats", currentChatId, "messages"),
-      orderBy("createdAt")
-    );
-
+    const q = query(collection(db, "chats", currentChatId, "messages"), orderBy("createdAt"));
     onSnapshot(q, (snap) => {
       messagesEl.innerHTML = "";
       snap.forEach((doc) => {
         const msg = doc.data();
+        const now = new Date();
+        const isUnlocked = !msg.unlockAt || msg.unlockAt.toDate() <= now;
+
         const div = document.createElement("div");
         div.className = `msg ${msg.sender === currentUser.uid ? "me" : "them"}`;
-        div.textContent = msg.text;
+        div.textContent = isUnlocked ? msg.text : "⏳ Time Capsule — unlocks later";
+
+        if (msg.unlockAt && msg.unlockAt.toDate() > now) {
+          div.style.fontStyle = "italic";
+          div.style.opacity = 0.6;
+        }
+
         messagesEl.appendChild(div);
       });
       messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -215,22 +218,28 @@
     const text = inputEl.value.trim();
     if (!text || !currentChatId) return;
 
-    await addDoc(
-      collection(db, "chats", currentChatId, "messages"),
-      {
-        text,
-        sender: currentUser.uid,
-        createdAt: serverTimestamp()
-      }
-    );
+    const unlockAt = capsuleMode && unlockInput.value ? new Date(unlockInput.value) : null;
+
+    await addDoc(collection(db, "chats", currentChatId, "messages"), {
+      text,
+      sender: currentUser.uid,
+      createdAt: serverTimestamp(),
+      unlockAt: unlockAt
+    });
 
     inputEl.value = "";
+    unlockInput.value = "";
+    unlockInput.style.display = capsuleMode ? "inline-block" : "none";
+    capsuleMode = false;
   }
 
   sendBtn.onclick = sendMessage;
-  inputEl.addEventListener("keydown", e => {
-    if (e.key === "Enter") sendMessage();
-  });
+  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+
+  timeCapsuleBtn.onclick = () => {
+    capsuleMode = !capsuleMode;
+    unlockInput.style.display = capsuleMode ? "inline-block" : "none";
+  };
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) return;
