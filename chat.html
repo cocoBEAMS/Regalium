@@ -1,103 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Chat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: #0b0f1a;
-      color: white;
-      font-family: Inter, sans-serif;
-    }
-
-    header {
-      padding: 16px;
-      border-bottom: 1px solid #1e2638;
-      font-weight: 600;
-    }
-
-    #messages {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .msg {
-      max-width: 70%;
-      padding: 10px 14px;
-      border-radius: 14px;
-      font-size: 14px;
-    }
-
-    .me {
-      align-self: flex-end;
-      background: #3b82f6;
-    }
-
-    .them {
-      align-self: flex-start;
-      background: #1e2638;
-    }
-
-    footer {
-      display: flex;
-      padding: 12px;
-      border-top: 1px solid #1e2638;
-      gap: 8px;
-    }
-
-    input {
-      flex: 1;
-      padding: 10px;
-      border-radius: 10px;
-      border: none;
-      background: #0f1420;
-      color: white;
-    }
-
-    button {
-      padding: 10px 16px;
-      border-radius: 10px;
-      border: none;
-      background: #3b82f6;
-      color: white;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    /* Friend picker modal */
-    #friendModal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-
-    #friendBox {
-      background: #0f1420;
-      padding: 20px;
-      border-radius: 14px;
-      width: 320px;
-    }
-
-    #friendBox button {
-      width: 100%;
-      margin-top: 8px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Regalium Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body {margin:0;font-family:Inter,sans-serif;height:100vh;display:flex;flex-direction:column;background:#0b0f1a;color:white;}
+header {padding:16px;font-weight:600;border-bottom:1px solid #1e2638;}
+#messages {flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+.msg {max-width:70%;padding:10px 14px;border-radius:14px;font-size:14px;word-wrap:break-word;}
+.me {align-self:flex-end;background:#3b82f6;}
+.them {align-self:flex-start;background:#1e2638;}
+footer {padding:12px;border-top:1px solid #2c3349;background:#121826;}
+#footerContainer {display:flex;gap:8px;max-width:800px;margin:auto;background:#1e2638;padding:8px;border-radius:16px;align-items:center;}
+#footerContainer input {flex:1;padding:10px 14px;border-radius:12px;border:none;background:#0f1420;color:white;font-size:14px;}
+#footerContainer button {padding:10px 16px;border-radius:12px;border:none;background:#3b82f6;color:white;font-weight:600;cursor:pointer;transition:all 0.2s;}
+#footerContainer button:hover {background:#60a5fa;box-shadow:0 0 10px #3b82f6;}
+#friendModal {position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;justify-content:center;align-items:center;z-index:9999;}
+#friendBox {background:#0f1420;padding:20px;border-radius:14px;width:320px;text-align:center;}
+#friendBox button {width:100%;margin-top:8px;padding:8px;border-radius:10px;border:none;cursor:pointer;background:#3b82f6;color:white;font-weight:600;}
+</style>
 </head>
 <body>
 
@@ -105,11 +28,12 @@
 <div id="messages"></div>
 
 <footer>
-  <input id="chatInput" placeholder="Type a message..." />
-  <button id="sendBtn">Send</button>
+  <div id="footerContainer">
+    <input id="chatInput" placeholder="Type a message..." />
+    <button id="sendBtn">Send</button>
+  </div>
 </footer>
 
-<!-- Friend Picker -->
 <div id="friendModal">
   <div id="friendBox">
     <h3>Select a friend</h3>
@@ -118,125 +42,97 @@
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import {
-    getFirestore,
-    doc,
-    getDoc,
-    collection,
-    getDocs,
-    addDoc,
-    query,
-    where,
-    orderBy,
-    onSnapshot,
-    serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
-    authDomain: "friendconnect-99a50.firebaseapp.com",
-    projectId: "friendconnect-99a50",
-    storageBucket: "friendconnect-99a50.appspot.com",
-    messagingSenderId: "904196830848",
-    appId: "1:904196830848:web:50c15121c2c04f1ea01865"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
+  authDomain: "friendconnect-99a50.firebaseapp.com",
+  projectId: "friendconnect-99a50",
+  storageBucket: "friendconnect-99a50.appspot.com",
+  messagingSenderId: "904196830848",
+  appId: "1:904196830848:web:50c15121c2c04f1ea01865"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-  const messagesEl = document.getElementById("messages");
-  const inputEl = document.getElementById("chatInput");
-  const sendBtn = document.getElementById("sendBtn");
-  const headerEl = document.getElementById("chatHeader");
-  const friendModal = document.getElementById("friendModal");
-  const friendsList = document.getElementById("friendsList");
+const messagesEl = document.getElementById("messages");
+const inputEl = document.getElementById("chatInput");
+const sendBtn = document.getElementById("sendBtn");
+const headerEl = document.getElementById("chatHeader");
+const friendModal = document.getElementById("friendModal");
+const friendsList = document.getElementById("friendsList");
 
-  let currentChatId = null;
-  let currentUser = null;
+let currentUser = null;
+let currentChatId = null;
 
-  function getChatId(a, b) {
-    return [a, b].sort().join("_");
-  }
+function getChatId(a,b){return [a,b].sort().join("_");}
 
-  async function loadFriends() {
-    friendsList.innerHTML = "";
-
-    const q = query(
-      collection(db, "friends"),
-      where("owner", "==", currentUser.uid)
-    );
-
-    const snap = await getDocs(q);
-
-    snap.forEach(async (docSnap) => {
-      const friendUid = docSnap.data().friend;
-      const friendSnap = await getDoc(doc(db, "users", friendUid));
-      if (!friendSnap.exists()) return;
-
-      const friend = friendSnap.data();
-
-      const btn = document.createElement("button");
-      btn.textContent = friend.name;
-      btn.onclick = () => openChat(friendUid, friend.name);
-      friendsList.appendChild(btn);
-    });
-  }
-
-  function openChat(friendUid, friendName) {
-    currentChatId = getChatId(currentUser.uid, friendUid);
-    headerEl.textContent = `Chat with ${friendName}`;
-    friendModal.style.display = "none";
-    listenForMessages();
-  }
-
-  function listenForMessages() {
-    const q = query(
-      collection(db, "chats", currentChatId, "messages"),
-      orderBy("createdAt")
-    );
-
-    onSnapshot(q, (snap) => {
-      messagesEl.innerHTML = "";
-      snap.forEach((doc) => {
-        const msg = doc.data();
-        const div = document.createElement("div");
-        div.className = `msg ${msg.sender === currentUser.uid ? "me" : "them"}`;
-        div.textContent = msg.text;
-        messagesEl.appendChild(div);
-      });
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    });
-  }
-
-  async function sendMessage() {
-    const text = inputEl.value.trim();
-    if (!text || !currentChatId) return;
-
-    await addDoc(
-      collection(db, "chats", currentChatId, "messages"),
-      {
-        text,
-        sender: currentUser.uid,
-        createdAt: serverTimestamp()
-      }
-    );
-
-    inputEl.value = "";
-  }
-
-  sendBtn.onclick = sendMessage;
-  inputEl.addEventListener("keydown", e => {
-    if (e.key === "Enter") sendMessage();
+async function loadFriends(){
+  friendsList.innerHTML="";
+  const q = query(collection(db,"friends"),where("owner","==",currentUser.uid));
+  const snap = await getDocs(q);
+  snap.forEach(async f=>{
+    const friendSnap = await getDoc(doc(db,"users",f.data().friend));
+    if(!friendSnap.exists()) return;
+    const friend=friendSnap.data();
+    const btn=document.createElement("button");
+    btn.textContent=friend.name;
+    btn.onclick=()=>openChat(f.data().friend,friend.name);
+    friendsList.appendChild(btn);
   });
+}
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) return;
-    currentUser = user;
-    await loadFriends();
+async function openChat(friendUid,friendName){
+  currentChatId=getChatId(currentUser.uid,friendUid);
+  const chatRef=doc(db,"chats",currentChatId);
+  const chatSnap=await getDoc(chatRef);
+  if(!chatSnap.exists()){
+    await setDoc(chatRef,{participants:[currentUser.uid,friendUid]});
+  }
+  headerEl.textContent=`Chat with ${friendName}`;
+  friendModal.style.display="none";
+  listenForMessages();
+}
+
+function listenForMessages(){
+  const q=query(collection(db,"chats",currentChatId,"messages"),orderBy("createdAt"));
+  onSnapshot(q,snap=>{
+    messagesEl.innerHTML="";
+    snap.forEach(docSnap=>{
+      const msg=docSnap.data();
+      const div=document.createElement("div");
+      div.className=`msg ${msg.sender===currentUser.uid?"me":"them"}`;
+      div.textContent=msg.text;
+      messagesEl.appendChild(div);
+    });
+    messagesEl.scrollTop=messagesEl.scrollHeight;
   });
+}
+
+async function sendMessage(){
+  if(!currentUser||!currentChatId) return;
+  const text=inputEl.value.trim();
+  if(!text) return;
+  await addDoc(collection(db,"chats",currentChatId,"messages"),{
+    text,
+    sender: currentUser.uid,
+    createdAt:new Date()
+  });
+  inputEl.value="";
+}
+
+sendBtn.onclick=sendMessage;
+inputEl.addEventListener("keydown",e=>{if(e.key==="Enter") sendMessage();});
+
+onAuthStateChanged(auth,user=>{
+  if(!user) return;
+  currentUser=user;
+  loadFriends();
+});
 </script>
 
 </body>
