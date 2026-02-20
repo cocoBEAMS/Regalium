@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Regalium Events</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0d14;
+      --panel: #0f1420;
+      --border: #1e2638;
+      --text: #e9ecf1;
+      --muted: #8b93a7;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --radius: 12px;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    nav {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel);
+    }
+
+    .nav-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--blue);
+      background: transparent;
+      color: var(--blue);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 0 20px;
+    }
+
+    .event-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .event-card h3 {
+      margin: 0 0 6px 0;
+    }
+
+    .event-card p {
+      margin: 4px 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .primary-btn {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--blue);
+      background: var(--blue);
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--panel);
+      padding: 24px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .modal input, .modal textarea {
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">Regalium Events</div>
+    <button class="nav-btn" id="createEventBtn" style="display:none;">Create Event</button>
+  </nav>
+
+  <div class="container" id="eventsContainer">
+    <h2>Upcoming Events</h2>
+    <div id="eventsList"></div>
+  </div>
+
+  <!-- CREATE EVENT MODAL -->
+  <div class="overlay" id="eventModal">
+    <div class="modal">
+      <h3>Create New Event</h3>
+      <input id="eventTitle" placeholder="Event Title" />
+      <textarea id="eventDescription" placeholder="Description"></textarea>
+      <input id="eventDate" type="date" />
+      <input id="eventLocation" placeholder="Location (optional)" />
+      <input id="eventMax" type="number" placeholder="Max Participants (optional)" />
+      <button class="primary-btn" id="saveEventBtn">Save Event</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCvCAnjI58ns5dWgmcY_saq1w3W_Qe9I7Y",
+      authDomain: "friendconnect-99a50.firebaseapp.com",
+      projectId: "friendconnect-99a50",
+      storageBucket: "friendconnect-99a50.appspot.com",
+      messagingSenderId: "904196830848",
+      appId: "1:904196830848:web:50c15121c2c04f1ea01865"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const eventsContainer = document.getElementById("eventsList");
+    const createEventBtn = document.getElementById("createEventBtn");
+    const eventModal = document.getElementById("eventModal");
+
+    let currentUserProfile = null;
+    let currentUser = null;
+
+    function showEventModal() {
+      eventModal.style.display = "flex";
+    }
+
+    function hideEventModal() {
+      eventModal.style.display = "none";
+    }
+
+    document.getElementById("createEventBtn").onclick = showEventModal;
+    eventModal.onclick = (e) => { if(e.target === eventModal) hideEventModal(); };
+
+    async function saveEvent() {
+      if (!currentUserProfile.verified) return alert("Only verified users can create events");
+
+      const title = document.getElementById("eventTitle").value.trim();
+      const desc = document.getElementById("eventDescription").value.trim();
+      const date = document.getElementById("eventDate").value;
+      const location = document.getElementById("eventLocation").value.trim();
+      const max = Number(document.getElementById("eventMax").value) || null;
+
+      if (!title || !desc || !date) return alert("Please fill in all required fields");
+
+      await addDoc(collection(db, "events"), {
+        title,
+        description: desc,
+        date,
+        location: location || null,
+        maxParticipants: max,
+        participants: [],
+        createdBy: currentUser.uid,
+        createdAt: Date.now()
+      });
+
+      hideEventModal();
+      loadEvents();
+    }
+
+    document.getElementById("saveEventBtn").onclick = saveEvent;
+
+    async function loadEvents() {
+      eventsContainer.innerHTML = "";
+
+      const snap = await getDocs(collection(db, "events"));
+      if (snap.empty) {
+        eventsContainer.innerHTML = "<p style='color:var(--muted)'>No events yet</p>";
+        return;
+      }
+
+      snap.forEach(docSnap => {
+        const e = docSnap.data();
+        const card = document.createElement("div");
+        card.className = "event-card";
+        card.innerHTML = `
+          <h3>${e.title}</h3>
+          <p>${e.description}</p>
+          <p><strong>Date:</strong> ${e.date}</p>
+          ${e.location ? `<p><strong>Location:</strong> ${e.location}</p>` : ""}
+          ${e.maxParticipants ? `<p><strong>Max Participants:</strong> ${e.maxParticipants}</p>` : ""}
+          <p><strong>Participants:</strong> ${e.participants?.length || 0}</p>
+          ${e.participants?.includes(currentUser?.uid)
+            ? `<button class="primary-btn" disabled>Going ✓</button>`
+            : `<button class="primary-btn" onclick="rsvp('${docSnap.id}')">RSVP</button>`}
+        `;
+        eventsContainer.appendChild(card);
+      });
+    }
+
+    async function rsvp(eventId) {
+      if (!currentUser) return alert("Sign in first");
+
+      const eventRef = doc(db, "events", eventId);
+      await updateDoc(eventRef, { participants: arrayUnion(currentUser.uid) });
+      loadEvents();
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("You must be signed in to see events");
+        window.location.href = "index.html";
+        return;
+      }
+
+      currentUser = user;
+      const userSnap = await getDocs(collection(db, "users"));
+      currentUserProfile = null;
+      userSnap.forEach(u => {
+        if (u.id === user.uid) currentUserProfile = u.data();
+      });
+
+      if (!currentUserProfile) {
+        alert("Profile not found");
+        return;
+      }
+
+      if (currentUserProfile.verified) createEventBtn.style.display = "inline-block";
+
+      loadEvents();
+    });
+
+  </script>
+</body>
+</html>
